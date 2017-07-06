@@ -1,122 +1,111 @@
-//Electron
-const electron = require('electron');
-const globalShortcut = electron.globalShortcut;
-const browserWindow = electron.BrowserWindow;
-const menu = electron.Menu;
-
-//App Info
-const app = electron.app;
-const app_name = app.getName();
-const app_title = app.getName();
-const app_version = app.getVersion();
-const app_description = 'Electron web app for the Ionic creator.';
-const app_config = require('./config');
-const app_is_dev = require('electron-is-dev');
-
 // System paths
-const path = require('path');
-const fs = require('fs');
+const path = require('path')
+const fs = require('fs')
 
-//Electron DL
-require('electron-dl')();
+// Electron
+const electron = require('electron')
 
-// Main Application Window
+const menu = electron.Menu
+const globalShortcut = electron.globalShortcut
+
+// App Info
+const app = electron.app
+const appTitle = app.getName()
+const appIsDev = require('electron-is-dev')
+
+// Right Click/Context menu
+require('electron-context-menu')()
+
+// Main App Window
 let mainWindow
 
 // If the application is quitting
-let isQuitting = false;
+let isQuitting = false
 
 // Main Window
-function createMainWindow() {
-    const lastWindowState = app_config.get('lastWindowState');
-    const app_view = new electron.BrowserWindow({
-        title: app_title,
-        x: lastWindowState.x,
-        y: lastWindowState.y,
-        width: lastWindowState.width,
-        height: lastWindowState.height,
-        minWidth: 850,
-        minHeight: 530,
-        resizable: true,
-        movable: true,
-        fullscreenable: true,
-        autoHideMenuBar: true,
-        titleBarStyle: 'hidden-inset',
-        webPreferences: {
-            nodeIntegration: false,
-            plugins: true
-        }
-    });
-    app_view.loadURL('https://creator.ionic.io');
+function createMainWindow () {
+  const appView = new electron.BrowserWindow({
+    title: appTitle,
+    width: 1280, // Default window width
+    height: 720, // Default window height
+
+    minWidth: 768, // Window minimum width
+    minHeight: 356, // Window minimum height
+    backgroundColor: '#ffffff', // Background Color
+    titleBarStyle: 'hidden-inset', // Titlebar style (MacOS Only)
+    center: true, // Center app window?
+    movable: true, // Is window movable?
+    resizable: true, // Is window resizable?
+    autoHideMenuBar: true // Hide menubar in window on launch
+  })
+  appView.loadURL('https://creator.ionic.io')
 
     // When window is closed, hide window
-    app_view.on('close', e => {
-        if (!isQuitting) {
-            e.preventDefault();
-            if (process.platform === 'darwin') {
-                app.hide();
-            } else {
-                app.quit();
-            }
-        }
-
-    });
-    return app_view;
+  appView.on('close', e => {
+    if (!isQuitting) {
+      e.preventDefault()
+      if (process.platform === 'darwin') {
+        app.hide()
+      } else {
+        app.quit()
+      }
+    }
+  })
+  return appView
 }
 
 app.on('ready', () => {
-    mainWindow = createMainWindow();
-    menu.setApplicationMenu(require('./menu'))
+  mainWindow = createMainWindow()
 
-    // Opens dev tools
+    // Setting App menu
+  menu.setApplicationMenu(require('./lib/menu.js'))
+
+    // If running in developer environment = Open developer tools
+  if (appIsDev) {
     mainWindow.openDevTools()
+  }
 
-    const app_page = mainWindow.webContents;
+  const appPage = mainWindow.webContents
 
-    app_page.on('dom-ready', () => {
-
-        // Stock style additions
-        app_page.insertCSS(fs.readFileSync(path.join(__dirname, 'style/app.css'), 'utf8'));
-
-        // Dark theme stylesheet
-        app_page.insertCSS(fs.readFileSync(path.join(__dirname, 'style/app-dark.css'), 'utf8'));
-
-        // MacOS Logo offset
-        if (process.platform == 'darwin') { app_page.insertCSS('.navbar-left{ margin-left: 64px;!important; }'); }
-
-        mainWindow.show();
-    });
-
-    //Open external links in browser
-    app_page.on('new-window', (e, url) => {
-        e.preventDefault();
-        electron.shell.openExternal(url);
-    });
-
-    //Shortcut to reload the page.
-    globalShortcut.register('CmdOrCtrl+R', () => {
-        mainWindow.webContents.reload();
-    })
-    globalShortcut.register('CmdOrCtrl+Left', () => {
-        mainWindow.webContents.goBack();
-        mainWindow.webContents.reload();
-    })
-
-    mainWindow.on('app-command', (e, cmd) => {
-        // Navigate the window back when the user hits their mouse back button
-        if (cmd === 'browser-backward' && mainWindow.webContents.canGoBack()) {
-            mainWindow.webContents.goBack()
-        }
-    })
-})
-app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-        app.quit()
+  appPage.on('dom-ready', () => {
+        // MacOS navbar border
+    if (process.platform === 'darwin') {
+      appPage.insertCSS(fs.readFileSync(path.join(__dirname, 'app.css'), 'utf8'))
     }
-})
-app.on('activate', () => {
+
+        // Show the Main Window
     mainWindow.show()
+
+        // Open external links in browser
+    appPage.on('new-window', (e, url) => {
+      e.preventDefault()
+      electron.shell.openExternal(url)
+    })
+
+        // Refresh page using F5
+    globalShortcut.register('F5', () => {
+      mainWindow.webContents.reload()
+    })
+
+        // Navigate the window back when the user hits their mouse back button
+    mainWindow.on('app-command', (e, cmd) => {
+      if (cmd === 'browser-backward' && mainWindow.webContents.canGoBack()) {
+        mainWindow.webContents.goBack()
+      }
+    })
+  })
 })
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit()
+  }
+})
+
+app.on('activate', () => {
+  mainWindow.show()
+})
+
 app.on('before-quit', () => {
-	isQuitting = true;
-});
+  isQuitting = true
+})
